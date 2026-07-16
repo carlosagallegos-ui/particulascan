@@ -1,0 +1,54 @@
+{
+  "name": "Analysis",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Etiqueta descriptiva de la muestra analizada"
+    },
+    "image_url": {
+      "type": "string",
+      "description": "URL de la imagen analizada"
+    },
+    "result": {
+      "type": "object",
+      "description": "Resultado del an\u00e1lisis de part\u00edculas en formato JSON estructurado",
+      "properties": {
+        "total_particles": {
+          "type": "number"
+        },
+        "total_particle_area_pixels": {
+          "type": "number"
+        },
+        "types": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type_name": {
+                "type": "string"
+              },
+              "count": {
+                "type": "number"
+              },
+              "total_area_pixels": {
+                "type": "number"
+              },
+              "percentage_of_particle_area": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "required": [
+    "name",
+    "image_url",
+    "result"
+  ]
+}
