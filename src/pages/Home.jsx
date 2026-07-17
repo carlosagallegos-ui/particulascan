@@ -14,7 +14,8 @@ const ANALYSIS_PROMPT = `Eres un analista experto en visión artificial especial
 2. Clasifícalas en tipos según color, forma y tamaño. Define cada tipo con un nombre descriptivo (ej: "rojo circular pequeño", "azul alargado grande").
 3. Calcula el área en píxeles de cada partícula y suma las áreas por tipo.
 4. Calcula el porcentaje que ocupa cada tipo respecto al área total de todas las partículas (suma total de áreas de todos los tipos).
-5. Si hay partículas aglomeradas o superpuestas, intenta separarlas; si no es posible, indícalo brevemente en el campo "notes".`;
+5. Si hay partículas aglomeradas o superpuestas, intenta separarlas; si no es posible, indícalo brevemente en el campo "notes".
+6. Identifica qué partículas son fibras (partículas alargadas con relación de aspecto elevada, longitud mucho mayor que el ancho) y calcula el porcentaje que representan respecto al área total de todas las partículas, guárdalo en "fiber_percentage".`;
 
 const ANALYSIS_SCHEMA = {
   type: 'object',
@@ -34,6 +35,7 @@ const ANALYSIS_SCHEMA = {
       },
     },
     notes: { type: 'string' },
+    fiber_percentage: { type: 'number' },
   },
 };
 

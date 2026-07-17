@@ -5,7 +5,7 @@ export default function AnalysisResultCard({ result }) {
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div className="rounded-lg bg-background/50 p-4 border border-border">
           <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Total de partículas</p>
           <p className="text-3xl font-bold text-foreground tabular-nums">{result.total_particles}</p>
@@ -14,6 +14,14 @@ export default function AnalysisResultCard({ result }) {
           <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Área total (px)</p>
           <p className="text-3xl font-bold text-accent tabular-nums">
             {result.total_particle_area_pixels?.toLocaleString()}
+          </p>
+        </div>
+        <div className="rounded-lg bg-background/50 p-4 border border-border">
+          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">% Fibras</p>
+          <p className="text-3xl font-bold text-primary tabular-nums">
+            {typeof result.fiber_percentage === 'number'
+              ? `${result.fiber_percentage.toFixed(2)}%`
+              : '—'}
           </p>
         </div>
       </div>
