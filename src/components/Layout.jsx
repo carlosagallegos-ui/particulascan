@@ -1,11 +1,10 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Microscope, LayoutDashboard, Palette } from 'lucide-react';
+import { Microscope, LayoutDashboard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { label: 'Nuevo Análisis', path: '/', icon: Microscope },
   { label: 'Historial', path: '/dashboard', icon: LayoutDashboard },
-  { label: 'Coloreo', path: '/coloring', icon: Palette },
 ];
 
 export default function Layout() {
