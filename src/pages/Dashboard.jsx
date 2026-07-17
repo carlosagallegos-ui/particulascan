@@ -5,14 +5,33 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import ComparisonBarChart from '@/components/ComparisonBarChart';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BarChart3, Check, Eye, GitCompare, FileDown } from 'lucide-react';
+import { BarChart3, Check, Eye, GitCompare, FileDown, Filter } from 'lucide-react';
 import { exportAllAnalysesToPdf } from '@/lib/exportPdf';
 import { cn } from '@/lib/utils';
+import AnalysisFilters from '@/components/AnalysisFilters';
 
 export default function Dashboard() {
   const [analyses, setAnalyses] = useState([]);
   const [selected, setSelected] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState({ dateFrom: '', dateTo: '', particleType: '' });
+
+  const filteredAnalyses = analyses.filter((a) => {
+    const created = a.created_date ? new Date(a.created_date) : null;
+    if (filters.dateFrom && created) {
+      const from = new Date(filters.dateFrom + 'T00:00:00');
+      if (created < from) return false;
+    }
+    if (filters.dateTo && created) {
+      const to = new Date(filters.dateTo + 'T23:59:59');
+      if (created > to) return false;
+    }
+    if (filters.particleType) {
+      const hasType = a.result?.types?.some((t) => t.type_name === filters.particleType);
+      if (!hasType) return false;
+    }
+    return true;
+  });
 
   useEffect(() => {
     base44.entities.Analysis
@@ -67,10 +86,25 @@ export default function Dashboard() {
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-            {analyses.map((a) => {
-              const isSelected = selected.find((s) => s.id === a.id);
-              return (
+          <AnalysisFilters
+            analyses={analyses}
+            filters={filters}
+            onChange={setFilters}
+            onClear={() => setFilters({ dateFrom: '', dateTo: '', particleType: '' })}
+          />
+
+          {filteredAnalyses.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Filter className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">No hay análisis que coincidan con los filtros.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+              {filteredAnalyses.map((a) => {
+                const isSelected = selected.find((s) => s.id === a.id);
+                return (
                 <Card
                   key={a.id}
                   className={cn(
@@ -108,7 +142,8 @@ export default function Dashboard() {
                 </Card>
               );
             })}
-          </div>
+            </div>
+          )}
 
           {selected.length >= 2 ? (
             <Card>
