@@ -10,6 +10,7 @@ import Layout from '@/components/Layout';
 import Home from '@/pages/Home';
 import Dashboard from '@/pages/Dashboard';
 import AnalysisDetail from '@/pages/AnalysisDetail';
+import ParticleColoring from '@/pages/ParticleColoring';
 // Add page imports here
 
 const AuthenticatedApp = () => {
@@ -43,6 +44,7 @@ const AuthenticatedApp = () => {
         <Route path="/" element={<Home />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/analysis/:id" element={<AnalysisDetail />} />
+        <Route path="/coloring" element={<ParticleColoring />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
