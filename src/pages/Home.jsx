@@ -88,7 +88,6 @@ export default function Home() {
         prompt: ANALYSIS_PROMPT,
         file_urls: [file_url],
         response_json_schema: ANALYSIS_SCHEMA,
-        model: 'claude_sonnet_4_6',
       });
 
       const saved = await base44.entities.Analysis.create({
