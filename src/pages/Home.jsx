@@ -68,7 +68,7 @@ export default function Home() {
 
       // Exportación automática a PDF
       try {
-        exportAnalysisToPdf({ ...saved, result: analysisResult });
+        await exportAnalysisToPdf({ ...saved, result: analysisResult });
       } catch (_) {
         // Si falla la descarga automática, el usuario puede exportar manualmente
       }

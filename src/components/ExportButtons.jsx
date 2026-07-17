@@ -34,8 +34,8 @@ export default function ExportButtons({ analysis }) {
     URL.revokeObjectURL(url);
   };
 
-  const exportPDF = () => {
-    exportAnalysisToPdf(analysis);
+  const exportPDF = async () => {
+    await exportAnalysisToPdf(analysis);
   };
 
   return (
