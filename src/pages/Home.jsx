@@ -8,15 +8,47 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle } from 'lucide-react';
 import { exportAnalysisToPdf } from '@/lib/exportPdf';
 
-const ANALYSIS_PROMPT = `Eres un analista experto en visión artificial especializado en partículas. Recibirás una imagen con partículas dispersas sobre un fondo contrastante. Tu tarea es procesarla y devolver exclusivamente un objeto JSON válido, sin ningún texto adicional, siguiendo las reglas a continuación.
+const ANALYSIS_PROMPT = `Eres un analista experto en visión artificial especializado en el conteo y clasificación precisa de partículas en imágenes microscópicas. Recibirás una imagen con partículas dispersas sobre un fondo contrastante. Tu objetivo es devolver exclusivamente un objeto JSON válido, sin texto adicional, con resultados reproducibles y consistentes.
 
-## Pasos a realizar (internamente)
-1. Segmenta con precisión todas las partículas de la imagen, ignorando fondo y ruido.
-2. Clasifícalas en tipos según color, forma y tamaño. Define cada tipo con un nombre descriptivo (ej: "rojo circular pequeño", "azul alargado grande").
-3. Calcula el área en píxeles de cada partícula y suma las áreas por tipo.
-4. Calcula el porcentaje que ocupa cada tipo respecto al área total de todas las partículas (suma total de áreas de todos los tipos).
-5. Si hay partículas aglomeradas o superpuestas, intenta separarlas; si no es posible, indícalo brevemente en el campo "notes".
-6. Identifica qué partículas son fibras (partículas alargadas con relación de aspecto elevada, longitud mucho mayor que el ancho) y calcula el porcentaje que representan respecto al área total de todas las partículas, guárdalo en "fiber_percentage".`;
+## METODOLOGÍA DE CONTEO (ejecuta paso a paso internamente antes de generar el JSON)
+
+### Paso 1 — Segmentación determinista
+- Ignora completamente el fondo, ruido, artefactos y reflejos.
+- Una "partícula" es todo objeto conectado claramente diferenciado del fondo por color, brillo o borde.
+- Si dos partículas se tocan pero tienen bordes reconocibles, cuéntalas como separadas.
+- Si dos partículas están fusionadas sin borde visible, cuéntalas como una sola.
+
+### Paso 2 — Conteo sistemático (CRÍTICO para consistencia)
+- Divide mentalmente la imagen en una cuadrícula de 3 columnas × 3 filas (9 regiones).
+- Cuenta las partículas región por región, de izquierda a derecha y de arriba abajo:
+  1. Esquina superior izquierda → 2. Superior centro → 3. Superior derecha
+  4. Medio izquierda → 5. Centro → 6. Medio derecha
+  7. Inferior izquierda → 8. Inferior centro → 9. Inferior derecha
+- Dentro de cada región, cuenta de izquierda a derecha, fila por fila, de arriba abajo.
+- Lleva un conteo interno por región y súmalas al final. NO estimes ni redondees.
+
+### Paso 3 — Clasificación
+- Agrupa las partículas por tipo según color, forma y tamaño.
+- Usa nombres descriptivos consistentes (ej: "esféricas oscuras", "alargadas claras", "fragmentos irregulares").
+- Mantén entre 2 y 6 tipos como máximo.
+
+### Paso 4 — Área
+- Estima el área en píxeles de cada partícula individual y súmala por tipo.
+- Suma todas las áreas para obtener el área total de partículas.
+
+### Paso 5 — Porcentajes
+- percentage_of_particle_area = (área del tipo / área total de partículas) × 100
+- Redondea a 2 decimales. La suma de todos los porcentajes debe dar ~100.
+
+### Paso 6 — Fibras
+- Las fibras son partículas alargadas con relación de aspecto (largo/ancho) ≥ 3:1.
+- fiber_percentage = (área total de fibras / área total de partículas) × 100, redondeado a 2 decimales.
+
+## REGLAS DE CONSISTENCIA
+- Cuenta cada partícula exactamente una vez.
+- El valor de total_particles debe ser igual a la suma de los "count" de todos los tipos.
+- El valor de total_particle_area_pixels debe ser igual a la suma de los "total_area_pixels" de todos los tipos.
+- Si hay ambigüedad en una región, cuenta la opción más conservadora.`;
 
 const ANALYSIS_SCHEMA = {
   type: 'object',
@@ -56,6 +88,7 @@ export default function Home() {
         prompt: ANALYSIS_PROMPT,
         file_urls: [file_url],
         response_json_schema: ANALYSIS_SCHEMA,
+        model: 'claude_sonnet_4_6',
       });
 
       const saved = await base44.entities.Analysis.create({
