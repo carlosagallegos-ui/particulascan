@@ -43,7 +43,7 @@ function buildPieChartSvg(result) {
   });
 
   // Leyenda
-  let legendY = 8;
+  let legendY = 26;
   let legend = '';
   const maxLabelLen = 28;
   types.forEach((t, i) => {
