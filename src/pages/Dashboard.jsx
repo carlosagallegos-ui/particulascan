@@ -5,7 +5,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import ComparisonBarChart from '@/components/ComparisonBarChart';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BarChart3, Check, Eye, GitCompare } from 'lucide-react';
+import { BarChart3, Check, Eye, GitCompare, FileDown } from 'lucide-react';
+import { exportAllAnalysesToPdf } from '@/lib/exportPdf';
 import { cn } from '@/lib/utils';
 
 export default function Dashboard() {
@@ -30,11 +31,22 @@ export default function Dashboard() {
 
   return (
     <div className="p-6 md:p-10 max-w-6xl mx-auto">
-      <div className="mb-8">
+      <div className="mb-8 relative">
         <h1 className="text-2xl font-bold text-foreground tracking-tight">Historial de Análisis</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Selecciona dos o más muestras para comparar su distribución de partículas.
         </p>
+        {analyses.length > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="absolute right-6 top-6 md:right-10 md:top-10"
+            onClick={() => exportAllAnalysesToPdf(analyses)}
+          >
+            <FileDown className="w-4 h-4 mr-1.5" />
+            Exportar todo a PDF
+          </Button>
+        )}
       </div>
 
       {loading ? (

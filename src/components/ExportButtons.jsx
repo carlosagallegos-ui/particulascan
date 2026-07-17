@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { FileJson, FileText, FileSpreadsheet } from 'lucide-react';
+import { exportAnalysisToPdf } from '@/lib/exportPdf';
 
 export default function ExportButtons({ analysis }) {
   if (!analysis?.result) return null;
@@ -33,42 +34,8 @@ export default function ExportButtons({ analysis }) {
     URL.revokeObjectURL(url);
   };
 
-  const exportPDF = async () => {
-    const { jsPDF } = await import('jspdf');
-    const doc = new jsPDF();
-
-    doc.setFontSize(16);
-    doc.setTextColor(15, 17, 23);
-    doc.text(analysis.name || 'Análisis de partículas', 20, 20);
-
-    doc.setFontSize(10);
-    doc.setTextColor(100, 100, 100);
-    doc.text(`Total de partículas: ${analysis.result.total_particles}`, 20, 32);
-    doc.text(`Área total (px): ${analysis.result.total_particle_area_pixels?.toLocaleString()}`, 20, 40);
-
-    doc.setTextColor(15, 17, 23);
-    doc.setFontSize(12);
-    doc.text('Tipos de partículas:', 20, 55);
-
-    let y = 65;
-    doc.setFontSize(9);
-    analysis.result.types?.forEach((t) => {
-      doc.text(
-        `${t.type_name}:  ${t.count} partículas  |  ${t.total_area_pixels?.toLocaleString()} px  |  ${typeof t.percentage_of_particle_area === 'number' ? t.percentage_of_particle_area.toFixed(2) : t.percentage_of_particle_area}%`,
-        20,
-        y
-      );
-      y += 7;
-    });
-
-    if (analysis.result.notes) {
-      y += 5;
-      doc.setTextColor(100, 100, 100);
-      const notes = doc.splitTextToSize(`Notas: ${analysis.result.notes}`, 170);
-      doc.text(notes, 20, y);
-    }
-
-    doc.save(`${analysis.name || 'analisis'}.pdf`);
+  const exportPDF = () => {
+    exportAnalysisToPdf(analysis);
   };
 
   return (

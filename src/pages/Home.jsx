@@ -6,6 +6,7 @@ import ParticlePieChart from '@/components/ParticlePieChart';
 import ExportButtons from '@/components/ExportButtons';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle } from 'lucide-react';
+import { exportAnalysisToPdf } from '@/lib/exportPdf';
 
 const ANALYSIS_PROMPT = `Eres un analista experto en visión artificial especializado en partículas. Recibirás una imagen con partículas dispersas sobre un fondo contrastante. Tu tarea es procesarla y devolver exclusivamente un objeto JSON válido, sin ningún texto adicional, siguiendo las reglas a continuación.
 
@@ -64,6 +65,13 @@ export default function Home() {
       });
 
       setSavedAnalysis(saved);
+
+      // Exportación automática a PDF
+      try {
+        exportAnalysisToPdf({ ...saved, result: analysisResult });
+      } catch (_) {
+        // Si falla la descarga automática, el usuario puede exportar manualmente
+      }
     } catch (err) {
       setError(err.message || 'Error al analizar la imagen. Intenta de nuevo.');
     } finally {
