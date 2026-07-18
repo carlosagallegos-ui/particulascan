@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import AnalysisResultCard from '@/components/AnalysisResultCard';
 import ParticlePieChart from '@/components/ParticlePieChart';
 import ExportButtons from '@/components/ExportButtons';
+import ScaleCalibration from '@/components/ScaleCalibration';
 import { ArrowLeft } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
 
@@ -21,6 +22,11 @@ export default function AnalysisDetail() {
       .then((data) => setAnalysis(data))
       .finally(() => setLoading(false));
   }, [id]);
+
+  const handleCalibrationUpdate = async (calibration) => {
+    const saved = await base44.entities.Analysis.update(analysis.id, { calibration });
+    setAnalysis({ ...analysis, calibration: saved.calibration });
+  };
 
   if (loading) {
     return (
@@ -73,13 +79,19 @@ export default function AnalysisDetail() {
         </Card>
       </div>
 
+      <Card className="mb-6">
+        <CardContent className="pt-6">
+          <ScaleCalibration analysis={analysis} onUpdate={handleCalibrationUpdate} />
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader className="flex-row items-center justify-between">
           <CardTitle className="text-sm">{t('home.detailedResults')}</CardTitle>
           <ExportButtons analysis={analysis} />
         </CardHeader>
         <CardContent>
-          <AnalysisResultCard result={analysis.result} />
+          <AnalysisResultCard result={analysis.result} calibration={analysis.calibration} />
         </CardContent>
       </Card>
     </div>

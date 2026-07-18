@@ -43,6 +43,7 @@ const ANALYSIS_PROMPT = `Eres un analista experto en visión artificial especial
 
 ### Paso 6 — Fibras
 - Las fibras son partículas alargadas con relación de aspecto (largo/ancho) ≥ 3:1.
+- Marca is_fiber=true en cada tipo que sea fibra; is_fiber=false en el resto.
 - fiber_percentage = (área total de fibras / área total de partículas) × 100, redondeado a 2 decimales.
 
 ## REGLAS DE CONSISTENCIA
@@ -65,6 +66,7 @@ const ANALYSIS_SCHEMA = {
           count: { type: 'number' },
           total_area_pixels: { type: 'number' },
           percentage_of_particle_area: { type: 'number' },
+          is_fiber: { type: 'boolean' },
         },
       },
     },

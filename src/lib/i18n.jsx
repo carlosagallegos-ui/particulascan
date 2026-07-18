@@ -62,6 +62,21 @@ const translations = {
 
     // Export
     'export.defaultName': 'analisis',
+
+    // Calibration
+    'calibration.title': 'Calibración de escala',
+    'calibration.start': 'Calibrar escala',
+    'calibration.mode': 'Haz clic en dos puntos de una barra de escala conocida',
+    'calibration.point1': 'Punto 1 seleccionado · haz clic para el punto 2',
+    'calibration.pixelDistance': 'Distancia en píxeles',
+    'calibration.realDistance': 'Distancia real (µm)',
+    'calibration.save': 'Guardar calibración',
+    'calibration.clear': 'Quitar calibración',
+    'calibration.recalibrate': 'Recalibrar',
+    'calibration.cancel': 'Cancelar',
+    'calibration.umPerPixel': 'µm/px',
+    'result.totalAreaUm': 'Área total (µm²)',
+    'result.areaUm': 'Área (µm²)',
   },
   en: {
     // Layout
@@ -124,6 +139,21 @@ const translations = {
 
     // Export
     'export.defaultName': 'analysis',
+
+    // Calibration
+    'calibration.title': 'Scale calibration',
+    'calibration.start': 'Calibrate scale',
+    'calibration.mode': 'Click two points on a known scale bar',
+    'calibration.point1': 'Point 1 selected · click for point 2',
+    'calibration.pixelDistance': 'Pixel distance',
+    'calibration.realDistance': 'Real distance (µm)',
+    'calibration.save': 'Save calibration',
+    'calibration.clear': 'Remove calibration',
+    'calibration.recalibrate': 'Recalibrate',
+    'calibration.cancel': 'Cancel',
+    'calibration.umPerPixel': 'µm/px',
+    'result.totalAreaUm': 'Total area (µm²)',
+    'result.areaUm': 'Area (µm²)',
   },
 };
 

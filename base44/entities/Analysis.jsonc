@@ -36,12 +36,36 @@
               },
               "percentage_of_particle_area": {
                 "type": "number"
+              },
+              "is_fiber": {
+                "type": "boolean"
               }
             }
           }
         },
         "notes": {
           "type": "string"
+        },
+        "fiber_percentage": {
+          "type": "number"
+        }
+      }
+    },
+    "calibration": {
+      "type": "object",
+      "description": "Calibraci\u00f3n de escala para conversi\u00f3n de p\u00edxeles a micras",
+      "properties": {
+        "scale_factor_um_per_px": {
+          "type": "number"
+        },
+        "method": {
+          "type": "string"
+        },
+        "real_distance_um": {
+          "type": "number"
+        },
+        "pixel_distance": {
+          "type": "number"
         }
       }
     }
