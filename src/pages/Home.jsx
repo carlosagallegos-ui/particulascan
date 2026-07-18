@@ -46,6 +46,13 @@ const ANALYSIS_PROMPT = `Eres un analista experto en visión artificial especial
 - Marca is_fiber=true en cada tipo que sea fibra; is_fiber=false en el resto.
 - fiber_percentage = (área total de fibras / área total de partículas) × 100, redondeado a 2 decimales.
 
+### Paso 7 — Regiones detectadas (para auditoría visual)
+- Para cada tipo, incluye un array "regions" con las bounding boxes de cada partícula contada.
+- Cada región: { "x", "y", "width", "height" } en coordenadas de píxel de la imagen original.
+- (x, y) es la esquina superior izquierda del rectángulo que rodea la partícula.
+- El número de regiones debe coincidir con el "count" de ese tipo.
+- Si hay demasiadas partículas (>80), retorna al menos 80 regiones representativas.
+
 ## REGLAS DE CONSISTENCIA
 - Cuenta cada partícula exactamente una vez.
 - El valor de total_particles debe ser igual a la suma de los "count" de todos los tipos.
@@ -67,6 +74,18 @@ const ANALYSIS_SCHEMA = {
           total_area_pixels: { type: 'number' },
           percentage_of_particle_area: { type: 'number' },
           is_fiber: { type: 'boolean' },
+          regions: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                x: { type: 'number' },
+                y: { type: 'number' },
+                width: { type: 'number' },
+                height: { type: 'number' },
+              },
+            },
+          },
         },
       },
     },

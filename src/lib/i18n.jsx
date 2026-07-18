@@ -77,6 +77,12 @@ const translations = {
     'calibration.umPerPixel': 'µm/px',
     'result.totalAreaUm': 'Área total (µm²)',
     'result.areaUm': 'Área (µm²)',
+
+    // Overlay
+    'overlay.title': 'Evidencia visual del conteo',
+    'overlay.hide': 'Ocultar',
+    'overlay.show': 'Mostrar',
+    'overlay.noRegions': 'El modelo no devolvió regiones detectadas',
   },
   en: {
     // Layout
@@ -154,6 +160,12 @@ const translations = {
     'calibration.umPerPixel': 'µm/px',
     'result.totalAreaUm': 'Total area (µm²)',
     'result.areaUm': 'Area (µm²)',
+
+    // Overlay
+    'overlay.title': 'Visual counting evidence',
+    'overlay.hide': 'Hide',
+    'overlay.show': 'Show',
+    'overlay.noRegions': 'The model did not return detected regions',
   },
 };
 

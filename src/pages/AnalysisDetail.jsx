@@ -7,6 +7,7 @@ import AnalysisResultCard from '@/components/AnalysisResultCard';
 import ParticlePieChart from '@/components/ParticlePieChart';
 import ExportButtons from '@/components/ExportButtons';
 import ScaleCalibration from '@/components/ScaleCalibration';
+import ParticleOverlay from '@/components/ParticleOverlay';
 import { ArrowLeft } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
 
@@ -78,6 +79,12 @@ export default function AnalysisDetail() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="mb-6">
+        <CardContent className="pt-6">
+          <ParticleOverlay analysis={analysis} />
+        </CardContent>
+      </Card>
 
       <Card className="mb-6">
         <CardContent className="pt-6">
