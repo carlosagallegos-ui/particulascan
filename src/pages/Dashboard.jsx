@@ -9,8 +9,10 @@ import { BarChart3, Check, Eye, GitCompare, FileDown, Filter } from 'lucide-reac
 import { exportAllAnalysesToPdf } from '@/lib/exportPdf';
 import { cn } from '@/lib/utils';
 import AnalysisFilters from '@/components/AnalysisFilters';
+import { useLang } from '@/lib/i18n';
 
 export default function Dashboard() {
+  const { t } = useLang();
   const [analyses, setAnalyses] = useState([]);
   const [selected, setSelected] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,9 +53,9 @@ export default function Dashboard() {
   return (
     <div className="p-6 md:p-10 max-w-6xl mx-auto">
       <div className="mb-8 relative">
-        <h1 className="text-2xl font-bold text-foreground tracking-tight">Historial de Análisis</h1>
+        <h1 className="text-2xl font-bold text-foreground tracking-tight">{t('dashboard.title')}</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Selecciona dos o más muestras para comparar su distribución de partículas.
+          {t('dashboard.subtitle')}
         </p>
         {analyses.length > 0 && (
           <Button
@@ -63,7 +65,7 @@ export default function Dashboard() {
             onClick={() => exportAllAnalysesToPdf(analyses)}
           >
             <FileDown className="w-4 h-4 mr-1.5" />
-            Exportar todo a PDF
+            {t('dashboard.exportAll')}
           </Button>
         )}
       </div>
@@ -78,9 +80,9 @@ export default function Dashboard() {
         <Card>
           <CardContent className="py-16 text-center">
             <BarChart3 className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground">Aún no hay análisis registrados.</p>
+            <p className="text-sm text-muted-foreground">{t('dashboard.empty')}</p>
             <Link to="/">
-              <Button variant="outline" size="sm" className="mt-4">Crear primer análisis</Button>
+              <Button variant="outline" size="sm" className="mt-4">{t('dashboard.createFirst')}</Button>
             </Link>
           </CardContent>
         </Card>
@@ -97,7 +99,7 @@ export default function Dashboard() {
             <Card>
               <CardContent className="py-12 text-center">
                 <Filter className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">No hay análisis que coincidan con los filtros.</p>
+                <p className="text-sm text-muted-foreground">{t('dashboard.noResults')}</p>
               </CardContent>
             </Card>
           ) : (
@@ -128,7 +130,7 @@ export default function Dashboard() {
                   <CardContent className="p-3">
                     <h3 className="text-sm font-medium text-foreground truncate">{a.name}</h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {a.result?.total_particles ?? '—'} partículas · {a.result?.types?.length ?? 0} tipos
+                      {a.result?.total_particles ?? '—'} {t('dashboard.particles')} · {a.result?.types?.length ?? 0} {t('dashboard.types')}
                     </p>
                     <Link
                       to={`/analysis/${a.id}`}
@@ -136,7 +138,7 @@ export default function Dashboard() {
                       className="inline-flex items-center gap-1 text-xs text-primary mt-2 hover:underline"
                     >
                       <Eye className="w-3 h-3" />
-                      Ver detalle
+                      {t('dashboard.viewDetail')}
                     </Link>
                   </CardContent>
                 </Card>
@@ -151,7 +153,7 @@ export default function Dashboard() {
                 <div className="flex items-center gap-2 mb-4">
                   <GitCompare className="w-4 h-4 text-primary" />
                   <h2 className="text-sm font-semibold text-foreground">
-                    Comparativa · {selected.length} muestras
+                    {t('dashboard.comparison')} · {selected.length} {t('dashboard.samples')}
                   </h2>
                 </div>
                 <ComparisonBarChart analyses={selected} />
@@ -160,7 +162,7 @@ export default function Dashboard() {
           ) : selected.length === 1 ? (
             <Card>
               <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                Selecciona una muestra más para habilitar la comparativa.
+                {t('dashboard.selectMore')}
               </CardContent>
             </Card>
           ) : null}

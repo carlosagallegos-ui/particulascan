@@ -7,6 +7,7 @@ import ExportButtons from '@/components/ExportButtons';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle } from 'lucide-react';
 import { exportAnalysisToPdf } from '@/lib/exportPdf';
+import { useLang } from '@/lib/i18n';
 
 const ANALYSIS_PROMPT = `Eres un analista experto en visión artificial especializado en el conteo y clasificación precisa de partículas en imágenes microscópicas. Recibirás una imagen con partículas dispersas sobre un fondo contrastante. Tu objetivo es devolver exclusivamente un objeto JSON válido, sin texto adicional, con resultados reproducibles y consistentes.
 
@@ -73,6 +74,7 @@ const ANALYSIS_SCHEMA = {
 };
 
 export default function Home() {
+  const { t } = useLang();
   const [analyzing, setAnalyzing] = useState(false);
   const [savedAnalysis, setSavedAnalysis] = useState(null);
   const [error, setError] = useState(null);
@@ -98,14 +100,12 @@ export default function Home() {
 
       setSavedAnalysis(saved);
 
-      // Exportación automática a PDF
       try {
         await exportAnalysisToPdf({ ...saved, result: analysisResult });
       } catch (_) {
-        // Si falla la descarga automática, el usuario puede exportar manualmente
       }
     } catch (err) {
-      setError(err.message || 'Error al analizar la imagen. Intenta de nuevo.');
+      setError(err.message || t('home.errorDefault'));
     } finally {
       setAnalyzing(false);
     }
@@ -114,9 +114,9 @@ export default function Home() {
   return (
     <div className="p-6 md:p-10 max-w-5xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-foreground tracking-tight">Nuevo Análisis de Partículas</h1>
+        <h1 className="text-2xl font-bold text-foreground tracking-tight">{t('home.title')}</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Sube una imagen de partículas sobre fondo contrastante para segmentar, clasificar y medir automáticamente.
+          {t('home.subtitle')}
         </p>
       </div>
 
@@ -138,7 +138,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">Imagen analizada</CardTitle>
+                <CardTitle className="text-sm">{t('home.analyzedImage')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <img
@@ -150,7 +150,7 @@ export default function Home() {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">Distribución por tipo</CardTitle>
+                <CardTitle className="text-sm">{t('home.distribution')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <ParticlePieChart result={savedAnalysis.result} />
@@ -160,7 +160,7 @@ export default function Home() {
 
           <Card>
             <CardHeader className="flex-row items-center justify-between">
-              <CardTitle className="text-sm">Resultados detallados</CardTitle>
+              <CardTitle className="text-sm">{t('home.detailedResults')}</CardTitle>
               <ExportButtons analysis={savedAnalysis} />
             </CardHeader>
             <CardContent>

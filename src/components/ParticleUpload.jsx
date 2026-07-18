@@ -4,8 +4,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { UploadCloud, Loader2, ImagePlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useLang } from '@/lib/i18n';
 
 export default function ParticleUpload({ onAnalyze, analyzing }) {
+  const { t } = useLang();
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [name, setName] = useState('');
@@ -45,8 +47,8 @@ export default function ParticleUpload({ onAnalyze, analyzing }) {
             <div className="w-14 h-14 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
               <ImagePlus className="w-6 h-6 text-primary" />
             </div>
-            <p className="text-sm text-foreground font-medium">Arrastra una imagen o haz clic para subir</p>
-            <p className="text-xs text-muted-foreground">PNG, JPG · Partículas sobre fondo contrastante</p>
+            <p className="text-sm text-foreground font-medium">{t('upload.dragDrop')}</p>
+            <p className="text-xs text-muted-foreground">{t('upload.formats')}</p>
           </div>
         )}
         <input
@@ -59,12 +61,12 @@ export default function ParticleUpload({ onAnalyze, analyzing }) {
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="sample-name">Nombre de la muestra</Label>
+        <Label htmlFor="sample-name">{t('upload.sampleName')}</Label>
         <Input
           id="sample-name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Ej: Muestra A - Lote 23"
+          placeholder={t('upload.placeholder')}
           className="bg-card"
         />
       </div>
@@ -78,12 +80,12 @@ export default function ParticleUpload({ onAnalyze, analyzing }) {
         {analyzing ? (
           <>
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            Analizando partículas...
+            {t('upload.analyzing')}
           </>
         ) : (
           <>
             <UploadCloud className="w-4 h-4 mr-2" />
-            Analizar partículas
+            {t('upload.analyze')}
           </>
         )}
       </Button>

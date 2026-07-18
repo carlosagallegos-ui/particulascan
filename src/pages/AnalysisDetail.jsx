@@ -7,8 +7,10 @@ import AnalysisResultCard from '@/components/AnalysisResultCard';
 import ParticlePieChart from '@/components/ParticlePieChart';
 import ExportButtons from '@/components/ExportButtons';
 import { ArrowLeft } from 'lucide-react';
+import { useLang } from '@/lib/i18n';
 
 export default function AnalysisDetail() {
+  const { t } = useLang();
   const { id } = useParams();
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -35,9 +37,9 @@ export default function AnalysisDetail() {
   if (!analysis) {
     return (
       <div className="p-10 max-w-5xl mx-auto text-center">
-        <p className="text-sm text-muted-foreground">Análisis no encontrado.</p>
+        <p className="text-sm text-muted-foreground">{t('detail.notFound')}</p>
         <Link to="/dashboard" className="text-primary text-sm hover:underline mt-2 inline-block">
-          Volver al historial
+          {t('detail.back')}
         </Link>
       </div>
     );
@@ -47,7 +49,7 @@ export default function AnalysisDetail() {
     <div className="p-6 md:p-10 max-w-5xl mx-auto">
       <Link to="/dashboard" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6">
         <ArrowLeft className="w-4 h-4" />
-        Volver al historial
+        {t('detail.back')}
       </Link>
 
       <h1 className="text-2xl font-bold text-foreground tracking-tight mb-6">{analysis.name}</h1>
@@ -55,7 +57,7 @@ export default function AnalysisDetail() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Imagen analizada</CardTitle>
+            <CardTitle className="text-sm">{t('home.analyzedImage')}</CardTitle>
           </CardHeader>
           <CardContent>
             <img src={analysis.image_url} alt={analysis.name} className="w-full rounded-lg border border-border" />
@@ -63,7 +65,7 @@ export default function AnalysisDetail() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Distribución por tipo</CardTitle>
+            <CardTitle className="text-sm">{t('home.distribution')}</CardTitle>
           </CardHeader>
           <CardContent>
             <ParticlePieChart result={analysis.result} />
@@ -73,7 +75,7 @@ export default function AnalysisDetail() {
 
       <Card>
         <CardHeader className="flex-row items-center justify-between">
-          <CardTitle className="text-sm">Resultados detallados</CardTitle>
+          <CardTitle className="text-sm">{t('home.detailedResults')}</CardTitle>
           <ExportButtons analysis={analysis} />
         </CardHeader>
         <CardContent>
