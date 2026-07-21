@@ -1,7 +1,14 @@
 import React from 'react';
+import { cn } from '@/lib/utils';
 import { useLang } from '@/lib/i18n';
 
-export default function AnalysisResultCard({ result, calibration }) {
+const CONFIDENCE_STYLES = {
+  high: 'border-accent/30 bg-accent/10 text-accent',
+  medium: 'border-chart-3/30 bg-chart-3/10 text-chart-3',
+  low: 'border-destructive/30 bg-destructive/10 text-destructive',
+};
+
+export default function AnalysisResultCard({ result, calibration, validation }) {
   const { t } = useLang();
   if (!result) return null;
 
@@ -21,6 +28,41 @@ export default function AnalysisResultCard({ result, calibration }) {
 
   return (
     <div className="space-y-5">
+      {validation && (
+        <div
+          className={cn(
+            'rounded-lg p-4 border flex flex-wrap items-center justify-between gap-3',
+            CONFIDENCE_STYLES[validation.confidence]
+          )}
+        >
+          <div className="flex flex-wrap gap-4 text-sm">
+            <div>
+              <span className="text-muted-foreground">{t('validation.llmCount')}:</span>
+              <span className="font-bold ml-1">{validation.llm_count}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">{t('validation.classicalCount')}:</span>
+              <span className="font-bold ml-1">{validation.classical_count}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">{t('validation.variance')}:</span>
+              <span className="font-bold ml-1">{validation.variance_pct}%</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{t('validation.confidence')}</span>
+            <span
+              className={cn(
+                'text-xs font-medium px-2.5 py-0.5 rounded-full',
+                CONFIDENCE_STYLES[validation.confidence]
+              )}
+            >
+              {t(`validation.${validation.confidence}`)}
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div className="rounded-lg bg-background/50 p-4 border border-border">
           <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">{t('result.totalParticles')}</p>
@@ -61,13 +103,15 @@ export default function AnalysisResultCard({ result, calibration }) {
               const areaUm2 = toUm2(tp.total_area_pixels);
               return (
                 <tr key={i} className="border-b border-border/50 last:border-0">
-                  <td className="px-4 py-2.5 text-foreground flex items-center gap-1.5">
-                    {tp.type_name}
-                    {tp.is_fiber && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/15 text-primary font-medium">
-                        fiber
-                      </span>
-                    )}
+                  <td className="px-4 py-2.5 text-foreground">
+                    <span className="inline-flex items-center gap-1.5">
+                      {tp.type_name}
+                      {tp.is_fiber && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/15 text-primary font-medium">
+                          fiber
+                        </span>
+                      )}
+                    </span>
                   </td>
                   <td className="px-4 py-2.5 text-right text-foreground tabular-nums">{tp.count}</td>
                   <td className="px-4 py-2.5 text-right text-foreground tabular-nums">

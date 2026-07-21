@@ -98,7 +98,7 @@ export default function AnalysisDetail() {
           <ExportButtons analysis={analysis} />
         </CardHeader>
         <CardContent>
-          <AnalysisResultCard result={analysis.result} calibration={analysis.calibration} />
+          <AnalysisResultCard result={analysis.result} calibration={analysis.calibration} validation={analysis.validation} />
         </CardContent>
       </Card>
     </div>

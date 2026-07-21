@@ -7,6 +7,7 @@ import ExportButtons from '@/components/ExportButtons';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle } from 'lucide-react';
 import { exportAnalysisToPdf } from '@/lib/exportPdf';
+import { classicalParticleCount, buildValidation } from '@/lib/classicalCV';
 import { useLang } from '@/lib/i18n';
 
 const ANALYSIS_PROMPT = `Eres un analista experto en visión artificial especializado en el conteo y clasificación precisa de partículas en imágenes microscópicas. Recibirás una imagen con partículas dispersas sobre un fondo contrastante. Tu objetivo es devolver exclusivamente un objeto JSON válido, sin texto adicional, con resultados reproducibles y consistentes.
@@ -107,16 +108,22 @@ export default function Home() {
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
 
-      const analysisResult = await base44.integrations.Core.InvokeLLM({
-        prompt: ANALYSIS_PROMPT,
-        file_urls: [file_url],
-        response_json_schema: ANALYSIS_SCHEMA,
-      });
+      const [analysisResult, classicalResult] = await Promise.all([
+        base44.integrations.Core.InvokeLLM({
+          prompt: ANALYSIS_PROMPT,
+          file_urls: [file_url],
+          response_json_schema: ANALYSIS_SCHEMA,
+        }),
+        classicalParticleCount(file_url).catch(() => null),
+      ]);
+
+      const validation = buildValidation(analysisResult.total_particles, classicalResult?.count);
 
       const saved = await base44.entities.Analysis.create({
         name,
         image_url: file_url,
         result: analysisResult,
+        validation,
       });
 
       setSavedAnalysis(saved);
@@ -185,7 +192,7 @@ export default function Home() {
               <ExportButtons analysis={savedAnalysis} />
             </CardHeader>
             <CardContent>
-              <AnalysisResultCard result={savedAnalysis.result} />
+              <AnalysisResultCard result={savedAnalysis.result} validation={savedAnalysis.validation} />
             </CardContent>
           </Card>
         </div>

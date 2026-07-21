@@ -88,6 +88,24 @@
           "type": "number"
         }
       }
+    },
+    "validation": {
+      "type": "object",
+      "description": "Validaci\u00f3n cruzada del conteo entre IA y algoritmo cl\u00e1sico de visi\u00f3n",
+      "properties": {
+        "classical_count": {
+          "type": "number"
+        },
+        "llm_count": {
+          "type": "number"
+        },
+        "confidence": {
+          "type": "string"
+        },
+        "variance_pct": {
+          "type": "number"
+        }
+      }
     }
   },
   "required": [

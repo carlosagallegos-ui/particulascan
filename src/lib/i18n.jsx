@@ -83,6 +83,17 @@ const translations = {
     'overlay.hide': 'Ocultar',
     'overlay.show': 'Mostrar',
     'overlay.noRegions': 'El modelo no devolvió regiones detectadas',
+
+    // Validation
+    'validation.title': 'Validación cruzada',
+    'validation.llmCount': 'Conteo IA',
+    'validation.classicalCount': 'Conteo algoritmo',
+    'validation.confidence': 'Confianza',
+    'validation.high': 'Alta',
+    'validation.medium': 'Media',
+    'validation.low': 'Baja',
+    'validation.variance': 'Varianza',
+    'validation.reviewNeeded': 'Requiere revisión',
   },
   en: {
     // Layout
@@ -166,6 +177,17 @@ const translations = {
     'overlay.hide': 'Hide',
     'overlay.show': 'Show',
     'overlay.noRegions': 'The model did not return detected regions',
+
+    // Validation
+    'validation.title': 'Cross-validation',
+    'validation.llmCount': 'AI count',
+    'validation.classicalCount': 'Algorithm count',
+    'validation.confidence': 'Confidence',
+    'validation.high': 'High',
+    'validation.medium': 'Medium',
+    'validation.low': 'Low',
+    'validation.variance': 'Variance',
+    'validation.reviewNeeded': 'Review needed',
   },
 };
 
