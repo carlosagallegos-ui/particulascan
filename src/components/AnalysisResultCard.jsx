@@ -39,15 +39,30 @@ export default function AnalysisResultCard({ result, calibration, validation }) 
             <div>
               <span className="text-muted-foreground">{t('validation.llmCount')}:</span>
               <span className="font-bold ml-1">{validation.llm_count}</span>
+              {validation.llm_runs?.length > 1 && (
+                <span className="text-xs text-muted-foreground ml-1">
+                  ({t('validation.medianOf')} {validation.llm_runs.length})
+                </span>
+              )}
             </div>
             <div>
               <span className="text-muted-foreground">{t('validation.classicalCount')}:</span>
-              <span className="font-bold ml-1">{validation.classical_count}</span>
+              <span className="font-bold ml-1">
+                {validation.classical_count ?? '—'}
+              </span>
             </div>
-            <div>
-              <span className="text-muted-foreground">{t('validation.variance')}:</span>
-              <span className="font-bold ml-1">{validation.variance_pct}%</span>
-            </div>
+            {validation.variance_pct != null && (
+              <div>
+                <span className="text-muted-foreground">{t('validation.variance')}:</span>
+                <span className="font-bold ml-1">{validation.variance_pct}%</span>
+              </div>
+            )}
+            {validation.llm_std_dev > 0 && (
+              <div>
+                <span className="text-muted-foreground">{t('validation.stdDev')}:</span>
+                <span className="font-bold ml-1">±{validation.llm_std_dev}</span>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">{t('validation.confidence')}</span>

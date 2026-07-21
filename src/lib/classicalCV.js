@@ -90,12 +90,13 @@ function floodFill(binary, labels, startIdx, width, height, label) {
 
 /**
  * Counts particles in an image using classical CV (Otsu + morphology + CCL).
+ * Uses adaptive minimum area based on image dimensions.
  * @param {string} imageUrl - URL of the image to analyze.
- * @param {{ minArea?: number, maxDimension?: number }} options
- * @returns {Promise<{ count: number, threshold: number, width: number, height: number }>}
+ * @param {{ maxDimension?: number }} options
+ * @returns {Promise<{ count: number, totalArea: number, threshold: number, width: number, height: number }>}
  */
 export async function classicalParticleCount(imageUrl, options = {}) {
-  const { minArea = 25, maxDimension = 800 } = options;
+  const { maxDimension = 800 } = options;
 
   const img = await loadImage(imageUrl);
   let width = img.naturalWidth || img.width;
@@ -138,49 +139,88 @@ export async function classicalParticleCount(imageUrl, options = {}) {
   // Morphological opening (erosion then dilation) — removes noise
   const opened = dilate(erode(binary, width, height), width, height);
 
+  // Adaptive minimum area: scales with image size
+  const minArea = Math.max(15, Math.round((width * height) / 6000));
+
   // Connected component labeling via flood fill
   const labels = new Int32Array(opened.length);
   let count = 0;
+  let totalArea = 0;
+  let nextLabel = 1;
   for (let i = 0; i < opened.length; i++) {
     if (opened[i] === 1 && labels[i] === 0) {
-      const size = floodFill(opened, labels, i, width, height, count + 1);
-      if (size >= minArea) count++;
+      const size = floodFill(opened, labels, i, width, height, nextLabel);
+      nextLabel++;
+      if (size >= minArea) {
+        count++;
+        totalArea += size;
+      }
     }
   }
 
-  return { count, threshold, width, height };
+  return { count, totalArea, threshold, width, height };
 }
 
 /**
- * Builds a validation object comparing LLM count vs classical CV count.
- * @param {number} llmCount
- * @param {number|null|undefined} classicalCount
- * @returns {{ classical_count: number, llm_count: number, confidence: string, variance_pct: number } | null}
+ * Builds a validation object comparing LLM ensemble vs classical CV.
+ * Confidence is based on the WORST of: count variance (LLM vs classical) and
+ * LLM internal consistency (std dev across runs).
+ *
+ * @param {number} llmCount - Median count from LLM ensemble
+ * @param {number|null} classicalCount - Count from classical CV
+ * @param {number} [llmStdDev=0] - Std dev across LLM runs
+ * @returns {{ classical_count: number|null, llm_count: number, confidence: string, variance_pct: number|null, llm_std_dev: number }|null}
  */
-export function buildValidation(llmCount, classicalCount) {
-  if (classicalCount == null) return null;
+export function buildValidation(llmCount, classicalCount, llmStdDev = 0) {
   const safeLlm = llmCount || 0;
+  const safeStdDev = llmStdDev || 0;
+  const roundedStdDev = Math.round(safeStdDev * 100) / 100;
+
+  // No classical CV — use only LLM consistency
+  if (classicalCount == null) {
+    const consistency = safeLlm > 0 ? (safeStdDev / safeLlm) * 100 : 100;
+    const level = consistency <= 5 ? 'high' : consistency <= 15 ? 'medium' : 'low';
+    return {
+      classical_count: null,
+      llm_count: safeLlm,
+      confidence: level,
+      variance_pct: null,
+      llm_std_dev: roundedStdDev,
+    };
+  }
+
   const safeClassical = classicalCount || 0;
 
   if (safeLlm === 0 && safeClassical === 0) {
-    return { classical_count: 0, llm_count: 0, confidence: 'high', variance_pct: 0 };
+    return { classical_count: 0, llm_count: 0, confidence: 'high', variance_pct: 0, llm_std_dev: 0 };
   }
   if (safeLlm === 0 || safeClassical === 0) {
-    return { classical_count: safeClassical, llm_count: safeLlm, confidence: 'low', variance_pct: 100 };
+    return {
+      classical_count: safeClassical,
+      llm_count: safeLlm,
+      confidence: 'low',
+      variance_pct: 100,
+      llm_std_dev: roundedStdDev,
+    };
   }
 
+  // Count variance between LLM and classical
   const diff = Math.abs(safeLlm - safeClassical);
   const avg = (safeLlm + safeClassical) / 2;
-  const variance = avg > 0 ? (diff / avg) * 100 : 100;
-  let level;
-  if (variance <= 10) level = 'high';
-  else if (variance <= 25) level = 'medium';
-  else level = 'low';
+  const countVariance = avg > 0 ? (diff / avg) * 100 : 100;
+
+  // LLM internal consistency (std dev relative to mean)
+  const llmConsistency = safeLlm > 0 ? (safeStdDev / safeLlm) * 100 : 0;
+
+  // Confidence based on the worse metric
+  const worstVariance = Math.max(countVariance, llmConsistency);
+  const level = worstVariance <= 10 ? 'high' : worstVariance <= 25 ? 'medium' : 'low';
 
   return {
     classical_count: safeClassical,
     llm_count: safeLlm,
     confidence: level,
-    variance_pct: Math.round(variance * 100) / 100,
+    variance_pct: Math.round(countVariance * 100) / 100,
+    llm_std_dev: roundedStdDev,
   };
 }

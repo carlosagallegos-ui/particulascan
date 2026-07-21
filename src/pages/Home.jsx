@@ -108,28 +108,50 @@ export default function Home() {
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
 
-      const [analysisResult, classicalResult] = await Promise.all([
+      const LLM_RUNS = 3;
+      const llmPromises = Array.from({ length: LLM_RUNS }, () =>
         base44.integrations.Core.InvokeLLM({
           prompt: ANALYSIS_PROMPT,
           file_urls: [file_url],
           response_json_schema: ANALYSIS_SCHEMA,
-        }),
+        })
+      );
+
+      const [rawLlmResults, classicalResult] = await Promise.all([
+        Promise.all(llmPromises.map((p) => p.catch(() => null))),
         classicalParticleCount(file_url).catch(() => null),
       ]);
 
-      const validation = buildValidation(analysisResult.total_particles, classicalResult?.count);
+      const validResults = rawLlmResults.filter((r) => r != null);
+      if (validResults.length === 0) throw new Error(t('home.errorDefault'));
+
+      const counts = validResults.map((r) => r.total_particles || 0);
+      const sortedCounts = [...counts].sort((a, b) => a - b);
+      const median = sortedCounts[Math.floor(sortedCounts.length / 2)];
+      const primaryResult = validResults.reduce((best, r) =>
+        Math.abs((r.total_particles || 0) - median) < Math.abs((best.total_particles || 0) - median) ? r : best
+      );
+      const mean = counts.reduce((a, b) => a + b, 0) / counts.length;
+      const stdDev = counts.length > 1
+        ? Math.sqrt(counts.reduce((s, c) => s + (c - mean) ** 2, 0) / counts.length)
+        : 0;
+
+      const validation = {
+        ...buildValidation(primaryResult.total_particles, classicalResult?.count, stdDev),
+        llm_runs: counts,
+      };
 
       const saved = await base44.entities.Analysis.create({
         name,
         image_url: file_url,
-        result: analysisResult,
+        result: primaryResult,
         validation,
       });
 
       setSavedAnalysis(saved);
 
       try {
-        await exportAnalysisToPdf({ ...saved, result: analysisResult });
+        await exportAnalysisToPdf({ ...saved, result: primaryResult });
       } catch (_) {
       }
     } catch (err) {

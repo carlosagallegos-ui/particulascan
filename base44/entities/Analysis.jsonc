@@ -91,12 +91,21 @@
     },
     "validation": {
       "type": "object",
-      "description": "Validaci\u00f3n cruzada del conteo entre IA y algoritmo cl\u00e1sico de visi\u00f3n",
+      "description": "Validaci\u00f3n cruzada del conteo entre ensemble de IA y algoritmo cl\u00e1sico",
       "properties": {
         "classical_count": {
           "type": "number"
         },
         "llm_count": {
+          "type": "number"
+        },
+        "llm_runs": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "llm_std_dev": {
           "type": "number"
         },
         "confidence": {

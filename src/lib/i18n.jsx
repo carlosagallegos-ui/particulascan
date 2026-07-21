@@ -94,6 +94,9 @@ const translations = {
     'validation.low': 'Baja',
     'validation.variance': 'Varianza',
     'validation.reviewNeeded': 'Requiere revisión',
+    'validation.medianOf': 'mediana de',
+    'validation.runs': 'ejecuciones',
+    'validation.stdDev': 'Desv. est.',
   },
   en: {
     // Layout
@@ -188,6 +191,9 @@ const translations = {
     'validation.low': 'Low',
     'validation.variance': 'Variance',
     'validation.reviewNeeded': 'Review needed',
+    'validation.medianOf': 'median of',
+    'validation.runs': 'runs',
+    'validation.stdDev': 'Std. dev',
   },
 };
 
