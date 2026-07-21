@@ -88,8 +88,101 @@ function floodFill(binary, labels, startIdx, width, height, label) {
   return size;
 }
 
+function distanceTransform(binary, width, height) {
+  const dist = new Float32Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    dist[i] = binary[i] === 1 ? Infinity : 0;
+  }
+  // Forward pass (top-left to bottom-right)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = y * width + x;
+      if (dist[idx] === 0) continue;
+      let d = dist[idx];
+      if (x > 0) d = Math.min(d, dist[idx - 1] + 1);
+      if (y > 0) d = Math.min(d, dist[idx - width] + 1);
+      if (x > 0 && y > 0) d = Math.min(d, dist[idx - width - 1] + 1.414);
+      if (x < width - 1 && y > 0) d = Math.min(d, dist[idx - width + 1] + 1.414);
+      dist[idx] = d;
+    }
+  }
+  // Backward pass (bottom-right to top-left)
+  for (let y = height - 1; y >= 0; y--) {
+    for (let x = width - 1; x >= 0; x--) {
+      const idx = y * width + x;
+      if (dist[idx] === 0) continue;
+      let d = dist[idx];
+      if (x < width - 1) d = Math.min(d, dist[idx + 1] + 1);
+      if (y < height - 1) d = Math.min(d, dist[idx + width] + 1);
+      if (x < width - 1 && y < height - 1) d = Math.min(d, dist[idx + width + 1] + 1.414);
+      if (x > 0 && y < height - 1) d = Math.min(d, dist[idx + width - 1] + 1.414);
+      dist[idx] = d;
+    }
+  }
+  return dist;
+}
+
+function findSeeds(dist, binary, width, height, minPeakHeight) {
+  const seeds = [];
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const idx = y * width + x;
+      if (binary[idx] !== 1) continue;
+      const d = dist[idx];
+      if (d < minPeakHeight) continue;
+      // Strict local maximum in 3x3 neighborhood
+      let isMax = true;
+      for (let dy = -1; dy <= 1 && isMax; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          if (dist[idx + dy * width + dx] > d) {
+            isMax = false;
+            break;
+          }
+        }
+      }
+      if (isMax) seeds.push(idx);
+    }
+  }
+  return seeds;
+}
+
+function watershedLabel(binary, seeds, width, height) {
+  const labels = new Int32Array(binary.length);
+  const queue = new Int32Array(binary.length);
+  let qHead = 0, qTail = 0;
+  for (let i = 0; i < seeds.length; i++) {
+    const idx = seeds[i];
+    labels[idx] = i + 1;
+    queue[qTail++] = idx;
+  }
+  while (qHead < qTail) {
+    const idx = queue[qHead++];
+    const label = labels[idx];
+    const x = idx % width;
+    const y = Math.floor(idx / width);
+    if (x > 0 && binary[idx - 1] === 1 && labels[idx - 1] === 0) {
+      labels[idx - 1] = label;
+      queue[qTail++] = idx - 1;
+    }
+    if (x < width - 1 && binary[idx + 1] === 1 && labels[idx + 1] === 0) {
+      labels[idx + 1] = label;
+      queue[qTail++] = idx + 1;
+    }
+    if (y > 0 && binary[idx - width] === 1 && labels[idx - width] === 0) {
+      labels[idx - width] = label;
+      queue[qTail++] = idx - width;
+    }
+    if (y < height - 1 && binary[idx + width] === 1 && labels[idx + width] === 0) {
+      labels[idx + width] = label;
+      queue[qTail++] = idx + width;
+    }
+  }
+  return labels;
+}
+
 /**
- * Counts particles in an image using classical CV (Otsu + morphology + CCL).
+ * Counts particles in an image using classical CV (Otsu + morphology + watershed).
  * Uses adaptive minimum area based on image dimensions.
  * @param {string} imageUrl - URL of the image to analyze.
  * @param {{ maxDimension?: number }} options
@@ -142,19 +235,29 @@ export async function classicalParticleCount(imageUrl, options = {}) {
   // Adaptive minimum area: scales with image size
   const minArea = Math.max(15, Math.round((width * height) / 6000));
 
-  // Connected component labeling via flood fill
-  const labels = new Int32Array(opened.length);
+  // Distance transform: distance from each foreground pixel to nearest background
+  const dist = distanceTransform(opened, width, height);
+
+  // Find seeds (local maxima in distance transform) — separates touching particles
+  const minPeakHeight = Math.max(2, Math.sqrt(minArea) / 3);
+  const seeds = findSeeds(dist, opened, width, height, minPeakHeight);
+
+  // Watershed labeling: assign each foreground pixel to nearest seed via BFS
+  const labels = watershedLabel(opened, seeds, width, height);
+
+  // Count labels with area >= minArea
+  const labelAreas = new Map();
+  for (let i = 0; i < labels.length; i++) {
+    if (labels[i] > 0) {
+      labelAreas.set(labels[i], (labelAreas.get(labels[i]) || 0) + 1);
+    }
+  }
   let count = 0;
   let totalArea = 0;
-  let nextLabel = 1;
-  for (let i = 0; i < opened.length; i++) {
-    if (opened[i] === 1 && labels[i] === 0) {
-      const size = floodFill(opened, labels, i, width, height, nextLabel);
-      nextLabel++;
-      if (size >= minArea) {
-        count++;
-        totalArea += size;
-      }
+  for (const area of labelAreas.values()) {
+    if (area >= minArea) {
+      count++;
+      totalArea += area;
     }
   }
 
