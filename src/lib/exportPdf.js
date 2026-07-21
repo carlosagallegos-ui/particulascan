@@ -245,18 +245,55 @@ function renderAnalysisPage(doc, analysis, lang, imgData, chartData) {
 }
 
 /**
+ * Translates particle type names and notes to English using the LLM.
+ */
+async function translateResultToEnglish(result) {
+  if (!result) return result;
+  try {
+    const { base44 } = await import('@/api/base44Client');
+    const typeNames = (result.types || []).map(t => t.type_name || '');
+    const notes = result.notes || '';
+    const translated = await base44.integrations.Core.InvokeLLM({
+      prompt: `Translate the following particle type names and notes from Spanish to English. Return only the JSON object, no extra text.
+Type names: ${JSON.stringify(typeNames)}
+Notes: ${JSON.stringify(notes)}`,
+      response_json_schema: {
+        type: 'object',
+        properties: {
+          type_names: { type: 'array', items: { type: 'string' } },
+          notes: { type: 'string' },
+        },
+      },
+    });
+    const translatedTypes = (result.types || []).map((t, i) => ({
+      ...t,
+      type_name: translated.type_names?.[i] || t.type_name,
+    }));
+    return { ...result, types: translatedTypes, notes: translated.notes || notes };
+  } catch (_) {
+    return result;
+  }
+}
+
+/**
  * Genera un PDF bilingüe: página 1 en inglés, página 2 en español.
  */
 export async function exportAnalysisToPdf(analysis) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-  const imgData = analysis.image_url ? await imageUrlToDataUrl(analysis.image_url) : null;
-  const chartSvgEn = buildPieChartSvg(analysis.result, 'en');
-  const chartDataEn = chartSvgEn ? await svgToPngDataUrl(chartSvgEn).catch(() => null) : null;
-  const chartSvgEs = buildPieChartSvg(analysis.result, 'es');
-  const chartDataEs = chartSvgEs ? await svgToPngDataUrl(chartSvgEs).catch(() => null) : null;
+  const [imgData, resultEn] = await Promise.all([
+    analysis.image_url ? imageUrlToDataUrl(analysis.image_url) : Promise.resolve(null),
+    translateResultToEnglish(analysis.result),
+  ]);
 
-  renderAnalysisPage(doc, analysis, 'en', imgData, chartDataEn);
+  const analysisEn = { ...analysis, result: resultEn };
+
+  const [chartDataEn, chartDataEs] = await Promise.all([
+    (buildPieChartSvg(resultEn, 'en') ? svgToPngDataUrl(buildPieChartSvg(resultEn, 'en')).catch(() => null) : Promise.resolve(null)),
+    (buildPieChartSvg(analysis.result, 'es') ? svgToPngDataUrl(buildPieChartSvg(analysis.result, 'es')).catch(() => null) : Promise.resolve(null)),
+  ]);
+
+  renderAnalysisPage(doc, analysisEn, 'en', imgData, chartDataEn);
   doc.addPage();
   renderAnalysisPage(doc, analysis, 'es', imgData, chartDataEs);
 
