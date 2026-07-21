@@ -410,43 +410,27 @@ export async function validateRegions(imageUrl, regions, options = {}) {
 }
 
 /**
- * Builds a validation object comparing LLM ensemble vs hybrid CV region validation.
- * Confidence is based on: region confirmation rate (CV confirms LLM regions) and
- * LLM internal consistency (std dev across runs).
+ * Builds a validation object from the multi-grid LLM ensemble.
+ * Confidence is based on the coefficient of variation across grid runs.
  *
  * @param {number} llmCount - Median count from LLM ensemble
- * @param {number|null} confirmedCount - Regions confirmed by classical CV
- * @param {number} totalRegions - Total LLM regions to validate
+ * @param {number[]} llmRuns - Individual counts from each grid run
  * @param {number} [llmStdDev=0] - Std dev across LLM runs
  */
-export function buildValidation(llmCount, confirmedCount, totalRegions, llmStdDev = 0) {
+export function buildValidation(llmCount, llmRuns, llmStdDev = 0) {
   const safeLlm = llmCount || 0;
   const safeStdDev = llmStdDev || 0;
   const roundedStdDev = Math.round(safeStdDev * 100) / 100;
+  const safeRuns = llmRuns || [];
 
-  if (totalRegions == null || totalRegions === 0) {
-    const consistency = safeLlm > 0 ? (safeStdDev / safeLlm) * 100 : 100;
-    const level = consistency <= 5 ? 'high' : consistency <= 15 ? 'medium' : 'low';
-    return {
-      classical_count: null,
-      llm_count: safeLlm,
-      confidence: level,
-      variance_pct: null,
-      llm_std_dev: roundedStdDev,
-    };
-  }
-
-  const safeConfirmed = confirmedCount || 0;
-  const missRate = (1 - safeConfirmed / totalRegions) * 100;
-  const llmConsistency = safeLlm > 0 ? (safeStdDev / safeLlm) * 100 : 0;
-  const worstVariance = Math.max(missRate, llmConsistency);
-  const level = worstVariance <= 15 ? 'high' : worstVariance <= 30 ? 'medium' : 'low';
+  const consistency = safeLlm > 0 ? (safeStdDev / safeLlm) * 100 : 100;
+  const level = consistency <= 5 ? 'high' : consistency <= 15 ? 'medium' : 'low';
 
   return {
-    classical_count: safeConfirmed,
     llm_count: safeLlm,
-    confidence: level,
-    variance_pct: Math.round(missRate * 100) / 100,
+    llm_runs: safeRuns,
     llm_std_dev: roundedStdDev,
+    confidence: level,
+    variance_pct: Math.round(consistency * 100) / 100,
   };
 }

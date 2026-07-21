@@ -7,10 +7,10 @@ import ExportButtons from '@/components/ExportButtons';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle } from 'lucide-react';
 import { exportAnalysisToPdf } from '@/lib/exportPdf';
-import { validateRegions, buildValidation } from '@/lib/classicalCV';
+import { buildValidation } from '@/lib/classicalCV';
 import { useLang } from '@/lib/i18n';
 
-const ANALYSIS_PROMPT = `Eres un analista experto en visión artificial especializado en el conteo y clasificación precisa de partículas en imágenes microscópicas. Recibirás una imagen con partículas dispersas sobre un fondo contrastante. Tu objetivo es devolver exclusivamente un objeto JSON válido, sin texto adicional, con resultados reproducibles y consistentes.
+const buildAnalysisPrompt = (cols, rows) => `Eres un analista experto en visión artificial especializado en el conteo y clasificación precisa de partículas en imágenes microscópicas. Recibirás una imagen con partículas dispersas sobre un fondo contrastante. Tu objetivo es devolver exclusivamente un objeto JSON válido, sin texto adicional, con resultados reproducibles y consistentes.
 
 ## METODOLOGÍA DE CONTEO (ejecuta paso a paso internamente antes de generar el JSON)
 
@@ -21,11 +21,8 @@ const ANALYSIS_PROMPT = `Eres un analista experto en visión artificial especial
 - Si dos partículas están fusionadas sin borde visible, cuéntalas como una sola.
 
 ### Paso 2 — Conteo sistemático (CRÍTICO para consistencia)
-- Divide mentalmente la imagen en una cuadrícula de 3 columnas × 3 filas (9 regiones).
-- Cuenta las partículas región por región, de izquierda a derecha y de arriba abajo:
-  1. Esquina superior izquierda → 2. Superior centro → 3. Superior derecha
-  4. Medio izquierda → 5. Centro → 6. Medio derecha
-  7. Inferior izquierda → 8. Inferior centro → 9. Inferior derecha
+- Divide mentalmente la imagen en una cuadrícula de ${cols} columnas × ${rows} filas (${cols * rows} regiones).
+- Cuenta las partículas región por región, de izquierda a derecha y de arriba abajo.
 - Dentro de cada región, cuenta de izquierda a derecha, fila por fila, de arriba abajo.
 - Lleva un conteo interno por región y súmalas al final. NO estimes ni redondees.
 
@@ -59,6 +56,12 @@ const ANALYSIS_PROMPT = `Eres un analista experto en visión artificial especial
 - El valor de total_particles debe ser igual a la suma de los "count" de todos los tipos.
 - El valor de total_particle_area_pixels debe ser igual a la suma de los "total_area_pixels" de todos los tipos.
 - Si hay ambigüedad en una región, cuenta la opción más conservadora.`;
+
+const GRID_CONFIGS = [
+  { cols: 3, rows: 3, label: '3×3' },
+  { cols: 6, rows: 6, label: '6×6' },
+  { cols: 9, rows: 9, label: '9×9' },
+];
 
 const ANALYSIS_SCHEMA = {
   type: 'object',
@@ -108,10 +111,9 @@ export default function Home() {
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
 
-      const LLM_RUNS = 3;
-      const llmPromises = Array.from({ length: LLM_RUNS }, () =>
+      const llmPromises = GRID_CONFIGS.map(({ cols, rows }) =>
         base44.integrations.Core.InvokeLLM({
-          prompt: ANALYSIS_PROMPT,
+          prompt: buildAnalysisPrompt(cols, rows),
           file_urls: [file_url],
           response_json_schema: ANALYSIS_SCHEMA,
         })
@@ -133,18 +135,7 @@ export default function Home() {
         ? Math.sqrt(counts.reduce((s, c) => s + (c - mean) ** 2, 0) / counts.length)
         : 0;
 
-      const allRegions = (primaryResult.types || []).flatMap((t) => t.regions || []);
-      const regionValidation = await validateRegions(file_url, allRegions).catch(() => null);
-
-      const validation = {
-        ...buildValidation(
-          primaryResult.total_particles,
-          regionValidation?.confirmed,
-          allRegions.length,
-          stdDev
-        ),
-        llm_runs: counts,
-      };
+      const validation = buildValidation(primaryResult.total_particles, counts, stdDev);
 
       const saved = await base44.entities.Analysis.create({
         name,

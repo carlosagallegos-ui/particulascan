@@ -91,11 +91,8 @@
     },
     "validation": {
       "type": "object",
-      "description": "Validaci\u00f3n cruzada del conteo entre ensemble de IA y algoritmo cl\u00e1sico",
+      "description": "Validaci\u00f3n del conteo mediante ensemble de 3 grillas (3\u00d73, 6\u00d76, 9\u00d79)",
       "properties": {
-        "classical_count": {
-          "type": "number"
-        },
         "llm_count": {
           "type": "number"
         },

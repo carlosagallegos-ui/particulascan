@@ -41,16 +41,16 @@ export default function AnalysisResultCard({ result, calibration, validation }) 
               <span className="font-bold ml-1">{validation.llm_count}</span>
               {validation.llm_runs?.length > 1 && (
                 <span className="text-xs text-muted-foreground ml-1">
-                  ({t('validation.medianOf')} {validation.llm_runs.length})
+                  (mediana de 3 grillas)
                 </span>
               )}
             </div>
-            <div>
-              <span className="text-muted-foreground">{t('validation.classicalCount')}:</span>
-              <span className="font-bold ml-1">
-                {validation.classical_count ?? '—'}
-              </span>
-            </div>
+            {validation.llm_runs?.length > 1 && (
+              <div>
+                <span className="text-muted-foreground">{t('validation.grids')}:</span>
+                <span className="font-bold ml-1">{validation.llm_runs.join(', ')}</span>
+              </div>
+            )}
             {validation.variance_pct != null && (
               <div>
                 <span className="text-muted-foreground">{t('validation.variance')}:</span>
