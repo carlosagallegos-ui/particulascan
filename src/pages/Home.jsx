@@ -58,7 +58,7 @@ const buildAnalysisPrompt = (cols, rows) => `Eres un analista experto en visión
 - Si hay ambigüedad en una región, cuenta la opción más conservadora.`;
 
 const GRID_CONFIGS = [
-  { cols: 3, rows: 3, label: '3×3' },
+  { cols: 5, rows: 5, label: '5×5' },
   { cols: 6, rows: 6, label: '6×6' },
   { cols: 9, rows: 9, label: '9×9' },
 ];
