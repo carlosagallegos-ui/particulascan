@@ -11,6 +11,7 @@ import { LanguageProvider } from '@/lib/i18n';
 import Home from '@/pages/Home';
 import Dashboard from '@/pages/Dashboard';
 import AnalysisDetail from '@/pages/AnalysisDetail';
+import MethodologyTest from '@/pages/MethodologyTest';
 // Add page imports here
 
 const AuthenticatedApp = () => {
@@ -44,6 +45,7 @@ const AuthenticatedApp = () => {
         <Route path="/" element={<Home />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/analysis/:id" element={<AnalysisDetail />} />
+        <Route path="/methodology-test" element={<MethodologyTest />} />
 
       </Route>
       <Route path="*" element={<PageNotFound />} />

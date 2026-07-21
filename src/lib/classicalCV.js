@@ -214,6 +214,151 @@ export async function classicalParticleCount(imageUrl, options = {}) {
   return { count, totalArea, threshold, width, height };
 }
 
+// === Shared helpers for methodology functions ===
+
+async function loadGrayscale(imageUrl, maxDimension = 800) {
+  const img = await loadImage(imageUrl);
+  let width = img.naturalWidth || img.width;
+  let height = img.naturalHeight || img.height;
+  const scale = Math.min(1, maxDimension / Math.max(width, height));
+  width = Math.max(1, Math.round(width * scale));
+  height = Math.max(1, Math.round(height * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, width, height);
+  const imageData = ctx.getImageData(0, 0, width, height);
+
+  const gray = new Uint8Array(width * height);
+  for (let i = 0; i < gray.length; i++) {
+    gray[i] = Math.round(0.299 * imageData.data[i * 4] + 0.587 * imageData.data[i * 4 + 1] + 0.114 * imageData.data[i * 4 + 2]);
+  }
+  return { gray, width, height };
+}
+
+function countComponents(binary, width, height, minArea) {
+  const labels = new Int32Array(binary.length);
+  let count = 0;
+  let totalArea = 0;
+  let nextLabel = 1;
+  for (let i = 0; i < binary.length; i++) {
+    if (binary[i] === 1 && labels[i] === 0) {
+      const size = floodFill(binary, labels, i, width, height, nextLabel);
+      nextLabel++;
+      if (size >= minArea) { count++; totalArea += size; }
+    }
+  }
+  return { count, totalArea };
+}
+
+// === METHODOLOGY A: Otsu baseline (dark particles only) ===
+export async function otsuParticleCount(imageUrl, options = {}) {
+  const { maxDimension = 800 } = options;
+  const { gray, width, height } = await loadGrayscale(imageUrl, maxDimension);
+
+  const threshold = otsuThreshold(gray);
+  const binary = new Uint8Array(gray.length);
+  let fgCount = 0;
+  for (let i = 0; i < gray.length; i++) {
+    binary[i] = gray[i] < threshold ? 1 : 0;
+    if (binary[i]) fgCount++;
+  }
+  if (fgCount / gray.length > 0.5) {
+    for (let i = 0; i < binary.length; i++) binary[i] = binary[i] ? 0 : 1;
+  }
+
+  const opened = dilate(erode(binary, width, height), width, height);
+  const minArea = Math.max(15, Math.round((width * height) / 6000));
+  const { count, totalArea } = countComponents(opened, width, height, minArea);
+  return { count, totalArea, threshold, width, height };
+}
+
+// === METHODOLOGY C: Multi-threshold (dark + light particles) ===
+export async function multiThresholdCount(imageUrl, options = {}) {
+  const { maxDimension = 800 } = options;
+  const { gray, width, height } = await loadGrayscale(imageUrl, maxDimension);
+
+  const threshold1 = otsuThreshold(gray);
+
+  // Dark particles: below Otsu threshold
+  const dark = new Uint8Array(gray.length);
+  for (let i = 0; i < gray.length; i++) dark[i] = gray[i] < threshold1 ? 1 : 0;
+
+  // Bright side stats for light particle detection
+  let brightCount = 0, brightSum = 0;
+  for (let i = 0; i < gray.length; i++) {
+    if (gray[i] >= threshold1) { brightSum += gray[i]; brightCount++; }
+  }
+  const brightMean = brightSum / brightCount;
+  let brightVarSum = 0;
+  for (let i = 0; i < gray.length; i++) {
+    if (gray[i] >= threshold1) brightVarSum += (gray[i] - brightMean) ** 2;
+  }
+  const brightStd = Math.sqrt(brightVarSum / brightCount);
+  const lightUpper = Math.round(brightMean - brightStd * 1.5);
+
+  // Light particles: between threshold1 and lightUpper
+  const light = new Uint8Array(gray.length);
+  for (let i = 0; i < gray.length; i++) {
+    light[i] = (gray[i] >= threshold1 && gray[i] < lightUpper) ? 1 : 0;
+  }
+
+  // Combine dark + light
+  const combined = new Uint8Array(gray.length);
+  for (let i = 0; i < gray.length; i++) combined[i] = (dark[i] || light[i]) ? 1 : 0;
+
+  const opened = dilate(erode(combined, width, height), width, height);
+  const minArea = Math.max(15, Math.round((width * height) / 6000));
+  const { count, totalArea } = countComponents(opened, width, height, minArea);
+  return { count, totalArea, threshold: threshold1, width, height };
+}
+
+// === METHODOLOGY E: Progressive erosion ===
+export async function progressiveErosionCount(imageUrl, options = {}) {
+  const { maxDimension = 800 } = options;
+  const { gray, width, height } = await loadGrayscale(imageUrl, maxDimension);
+
+  // Start with Sobel-based detection
+  const mag = sobelMagnitude(gray, width, height);
+  let gradMean = 0;
+  for (let i = 0; i < mag.length; i++) gradMean += mag[i];
+  gradMean /= mag.length;
+  let gradVar = 0;
+  for (let i = 0; i < mag.length; i++) gradVar += (mag[i] - gradMean) ** 2;
+  const gradStd = Math.sqrt(gradVar / mag.length);
+  const edgeThreshold = Math.round(gradMean + gradStd * 2);
+
+  const edges = new Uint8Array(mag.length);
+  for (let i = 0; i < mag.length; i++) edges[i] = mag[i] > edgeThreshold ? 1 : 0;
+
+  let closed = dilate(dilate(edges, width, height), width, height);
+  closed = erode(erode(closed, width, height), width, height);
+  const filled = fillHoles(closed, width, height);
+
+  const minArea = Math.max(15, Math.round((width * height) / 6000));
+
+  // Count at each erosion level to find plateau
+  const countsByLevel = [];
+  let current = filled;
+  for (let level = 0; level <= 5; level++) {
+    const { count } = countComponents(current, width, height, minArea);
+    countsByLevel.push(count);
+    if (level < 5) current = erode(current, width, height);
+  }
+
+  // Find first plateau (count stabilizes)
+  let bestCount = countsByLevel[0];
+  for (let i = 1; i < countsByLevel.length; i++) {
+    if (countsByLevel[i] === countsByLevel[i - 1]) { bestCount = countsByLevel[i]; break; }
+  }
+  if (bestCount === countsByLevel[0]) bestCount = Math.max(...countsByLevel);
+
+  const { totalArea } = countComponents(filled, width, height, minArea);
+  return { count: bestCount, totalArea, threshold: edgeThreshold, width, height, countsByLevel };
+}
+
 /**
  * Builds a validation object comparing LLM ensemble vs classical CV.
  * Confidence is based on the WORST of: count variance (LLM vs classical) and
