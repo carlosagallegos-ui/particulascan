@@ -359,23 +359,72 @@ export async function progressiveErosionCount(imageUrl, options = {}) {
   return { count: bestCount, totalArea, threshold: edgeThreshold, width, height, countsByLevel };
 }
 
+// === HYBRID: Validate LLM regions with classical CV ===
+// For each LLM bounding box, checks if there's a real particle (local contrast)
+// Returns { confirmed, total } — how many LLM regions have detectable particles
+export async function validateRegions(imageUrl, regions, options = {}) {
+  const { maxDimension = 800 } = options;
+  const img = await loadImage(imageUrl);
+  const origWidth = img.naturalWidth || img.width;
+  const origHeight = img.naturalHeight || img.height;
+  const scale = Math.min(1, maxDimension / Math.max(origWidth, origHeight));
+  const width = Math.max(1, Math.round(origWidth * scale));
+  const height = Math.max(1, Math.round(origHeight * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, width, height);
+  const imageData = ctx.getImageData(0, 0, width, height);
+
+  const gray = new Uint8Array(width * height);
+  for (let i = 0; i < gray.length; i++) {
+    gray[i] = Math.round(0.299 * imageData.data[i * 4] + 0.587 * imageData.data[i * 4 + 1] + 0.114 * imageData.data[i * 4 + 2]);
+  }
+
+  let confirmed = 0;
+  for (const region of regions) {
+    const rx = Math.round((region.x || 0) * scale);
+    const ry = Math.round((region.y || 0) * scale);
+    const rw = Math.round((region.width || 0) * scale);
+    const rh = Math.round((region.height || 0) * scale);
+    if (rw < 2 || rh < 2) continue;
+
+    let sum = 0, sumSq = 0, count = 0;
+    for (let y = Math.max(0, ry); y < Math.min(height, ry + rh); y++) {
+      for (let x = Math.max(0, rx); x < Math.min(width, rx + rw); x++) {
+        const v = gray[y * width + x];
+        sum += v;
+        sumSq += v * v;
+        count++;
+      }
+    }
+    if (count < 4) continue;
+    const mean = sum / count;
+    const std = Math.sqrt(Math.max(0, sumSq / count - mean * mean));
+    if (std > 8) confirmed++;
+  }
+
+  return { confirmed, total: regions.length };
+}
+
 /**
- * Builds a validation object comparing LLM ensemble vs classical CV.
- * Confidence is based on the WORST of: count variance (LLM vs classical) and
+ * Builds a validation object comparing LLM ensemble vs hybrid CV region validation.
+ * Confidence is based on: region confirmation rate (CV confirms LLM regions) and
  * LLM internal consistency (std dev across runs).
  *
  * @param {number} llmCount - Median count from LLM ensemble
- * @param {number|null} classicalCount - Count from classical CV
+ * @param {number|null} confirmedCount - Regions confirmed by classical CV
+ * @param {number} totalRegions - Total LLM regions to validate
  * @param {number} [llmStdDev=0] - Std dev across LLM runs
- * @returns {{ classical_count: number|null, llm_count: number, confidence: string, variance_pct: number|null, llm_std_dev: number }|null}
  */
-export function buildValidation(llmCount, classicalCount, llmStdDev = 0) {
+export function buildValidation(llmCount, confirmedCount, totalRegions, llmStdDev = 0) {
   const safeLlm = llmCount || 0;
   const safeStdDev = llmStdDev || 0;
   const roundedStdDev = Math.round(safeStdDev * 100) / 100;
 
-  // No classical CV — use only LLM consistency
-  if (classicalCount == null) {
+  if (totalRegions == null || totalRegions === 0) {
     const consistency = safeLlm > 0 ? (safeStdDev / safeLlm) * 100 : 100;
     const level = consistency <= 5 ? 'high' : consistency <= 15 ? 'medium' : 'low';
     return {
@@ -387,38 +436,17 @@ export function buildValidation(llmCount, classicalCount, llmStdDev = 0) {
     };
   }
 
-  const safeClassical = classicalCount || 0;
-
-  if (safeLlm === 0 && safeClassical === 0) {
-    return { classical_count: 0, llm_count: 0, confidence: 'high', variance_pct: 0, llm_std_dev: 0 };
-  }
-  if (safeLlm === 0 || safeClassical === 0) {
-    return {
-      classical_count: safeClassical,
-      llm_count: safeLlm,
-      confidence: 'low',
-      variance_pct: 100,
-      llm_std_dev: roundedStdDev,
-    };
-  }
-
-  // Count variance between LLM and classical
-  const diff = Math.abs(safeLlm - safeClassical);
-  const avg = (safeLlm + safeClassical) / 2;
-  const countVariance = avg > 0 ? (diff / avg) * 100 : 100;
-
-  // LLM internal consistency (std dev relative to mean)
+  const safeConfirmed = confirmedCount || 0;
+  const missRate = (1 - safeConfirmed / totalRegions) * 100;
   const llmConsistency = safeLlm > 0 ? (safeStdDev / safeLlm) * 100 : 0;
-
-  // Confidence based on the worse metric
-  const worstVariance = Math.max(countVariance, llmConsistency);
-  const level = worstVariance <= 10 ? 'high' : worstVariance <= 25 ? 'medium' : 'low';
+  const worstVariance = Math.max(missRate, llmConsistency);
+  const level = worstVariance <= 15 ? 'high' : worstVariance <= 30 ? 'medium' : 'low';
 
   return {
-    classical_count: safeClassical,
+    classical_count: safeConfirmed,
     llm_count: safeLlm,
     confidence: level,
-    variance_pct: Math.round(countVariance * 100) / 100,
+    variance_pct: Math.round(missRate * 100) / 100,
     llm_std_dev: roundedStdDev,
   };
 }

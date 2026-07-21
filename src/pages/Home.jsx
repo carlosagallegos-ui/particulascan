@@ -7,7 +7,7 @@ import ExportButtons from '@/components/ExportButtons';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle } from 'lucide-react';
 import { exportAnalysisToPdf } from '@/lib/exportPdf';
-import { classicalParticleCount, buildValidation } from '@/lib/classicalCV';
+import { validateRegions, buildValidation } from '@/lib/classicalCV';
 import { useLang } from '@/lib/i18n';
 
 const ANALYSIS_PROMPT = `Eres un analista experto en visión artificial especializado en el conteo y clasificación precisa de partículas en imágenes microscópicas. Recibirás una imagen con partículas dispersas sobre un fondo contrastante. Tu objetivo es devolver exclusivamente un objeto JSON válido, sin texto adicional, con resultados reproducibles y consistentes.
@@ -117,10 +117,7 @@ export default function Home() {
         })
       );
 
-      const [rawLlmResults, classicalResult] = await Promise.all([
-        Promise.all(llmPromises.map((p) => p.catch(() => null))),
-        classicalParticleCount(file_url).catch(() => null),
-      ]);
+      const rawLlmResults = await Promise.all(llmPromises.map((p) => p.catch(() => null)));
 
       const validResults = rawLlmResults.filter((r) => r != null);
       if (validResults.length === 0) throw new Error(t('home.errorDefault'));
@@ -136,8 +133,16 @@ export default function Home() {
         ? Math.sqrt(counts.reduce((s, c) => s + (c - mean) ** 2, 0) / counts.length)
         : 0;
 
+      const allRegions = (primaryResult.types || []).flatMap((t) => t.regions || []);
+      const regionValidation = await validateRegions(file_url, allRegions).catch(() => null);
+
       const validation = {
-        ...buildValidation(primaryResult.total_particles, classicalResult?.count, stdDev),
+        ...buildValidation(
+          primaryResult.total_particles,
+          regionValidation?.confirmed,
+          allRegions.length,
+          stdDev
+        ),
         llm_runs: counts,
       };
 
