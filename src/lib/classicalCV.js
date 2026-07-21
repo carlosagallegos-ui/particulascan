@@ -88,9 +88,54 @@ function floodFill(binary, labels, startIdx, width, height, label) {
   return size;
 }
 
+function sobelMagnitude(gray, width, height) {
+  const mag = new Float32Array(gray.length);
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const idx = y * width + x;
+      const tl = gray[idx - width - 1], t = gray[idx - width], tr = gray[idx - width + 1];
+      const l = gray[idx - 1], r = gray[idx + 1];
+      const bl = gray[idx + width - 1], b = gray[idx + width], br = gray[idx + width + 1];
+      const gx = -tl + tr - 2 * l + 2 * r - bl + br;
+      const gy = -tl - 2 * t - tr + bl + 2 * b + br;
+      mag[idx] = Math.sqrt(gx * gx + gy * gy);
+    }
+  }
+  return mag;
+}
+
+function fillHoles(binary, width, height) {
+  // Flood fill from border background pixels, then invert
+  const marked = new Uint8Array(binary.length);
+  for (let i = 0; i < marked.length; i++) marked[i] = binary[i];
+  const queue = new Int32Array(marked.length);
+  let qHead = 0, qTail = 0;
+  for (let x = 0; x < width; x++) {
+    if (marked[x] === 0) { marked[x] = 2; queue[qTail++] = x; }
+    const bi = (height - 1) * width + x;
+    if (marked[bi] === 0) { marked[bi] = 2; queue[qTail++] = bi; }
+  }
+  for (let y = 0; y < height; y++) {
+    if (marked[y * width] === 0) { marked[y * width] = 2; queue[qTail++] = y * width; }
+    if (marked[y * width + width - 1] === 0) { marked[y * width + width - 1] = 2; queue[qTail++] = y * width + width - 1; }
+  }
+  while (qHead < qTail) {
+    const idx = queue[qHead++];
+    const x = idx % width;
+    const y = Math.floor(idx / width);
+    if (x > 0 && marked[idx - 1] === 0) { marked[idx - 1] = 2; queue[qTail++] = idx - 1; }
+    if (x < width - 1 && marked[idx + 1] === 0) { marked[idx + 1] = 2; queue[qTail++] = idx + 1; }
+    if (y > 0 && marked[idx - width] === 0) { marked[idx - width] = 2; queue[qTail++] = idx - width; }
+    if (y < height - 1 && marked[idx + width] === 0) { marked[idx + width] = 2; queue[qTail++] = idx + width; }
+  }
+  const result = new Uint8Array(binary.length);
+  for (let i = 0; i < result.length; i++) result[i] = marked[i] !== 2 ? 1 : 0;
+  return result;
+}
+
 /**
- * Counts particles in an image using classical CV (Otsu + morphology + CCL).
- * Uses adaptive minimum area based on image dimensions.
+ * Counts particles in an image using classical CV (Sobel edges + morphology + CCL).
+ * Detects both dark and light particles by finding edges regardless of brightness.
  * @param {string} imageUrl - URL of the image to analyze.
  * @param {{ maxDimension?: number }} options
  * @returns {Promise<{ count: number, totalArea: number, threshold: number, width: number, height: number }>}
@@ -121,23 +166,31 @@ export async function classicalParticleCount(imageUrl, options = {}) {
     gray[i] = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
   }
 
-  // Otsu's threshold
-  const threshold = otsuThreshold(gray);
+  // Sobel edge detection — finds boundaries of BOTH dark and light particles
+  const mag = sobelMagnitude(gray, width, height);
 
-  // Binarize (particles darker than background by default)
-  const binary = new Uint8Array(gray.length);
-  let fgCount = 0;
-  for (let i = 0; i < gray.length; i++) {
-    binary[i] = gray[i] < threshold ? 1 : 0;
-    if (binary[i]) fgCount++;
-  }
-  // Heuristic: if most of the image is "foreground", particles are likely lighter
-  if (fgCount / gray.length > 0.5) {
-    for (let i = 0; i < binary.length; i++) binary[i] = binary[i] ? 0 : 1;
-  }
+  // Adaptive edge threshold: mean + 2 std dev
+  let gradMean = 0;
+  for (let i = 0; i < mag.length; i++) gradMean += mag[i];
+  gradMean /= mag.length;
+  let gradVar = 0;
+  for (let i = 0; i < mag.length; i++) gradVar += (mag[i] - gradMean) ** 2;
+  const gradStd = Math.sqrt(gradVar / mag.length);
+  const threshold = Math.round(gradMean + gradStd * 2);
 
-  // Morphological opening (erosion then dilation) — removes noise
-  const opened = dilate(erode(binary, width, height), width, height);
+  // Binarize edges
+  const edges = new Uint8Array(mag.length);
+  for (let i = 0; i < mag.length; i++) edges[i] = mag[i] > threshold ? 1 : 0;
+
+  // Morphological closing: dilate (×2) then erode (×2) to connect edge fragments
+  let closed = dilate(dilate(edges, width, height), width, height);
+  closed = erode(erode(closed, width, height), width, height);
+
+  // Fill holes inside closed contours → solid particle masks
+  const filled = fillHoles(closed, width, height);
+
+  // Morphological opening: erode then dilate to remove thin noise
+  const opened = dilate(erode(filled, width, height), width, height);
 
   // Adaptive minimum area: scales with image size
   const minArea = Math.max(15, Math.round((width * height) / 6000));
