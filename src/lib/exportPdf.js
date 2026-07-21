@@ -18,7 +18,7 @@ function pctVal(v) {
 /**
  * Genera un pie chart como string SVG a partir de los tipos del resultado.
  */
-function buildPieChartSvg(result) {
+function buildPieChartSvg(result, lang = 'es') {
   const types = result?.types || [];
   if (!types.length) return null;
 
@@ -60,11 +60,11 @@ function buildPieChartSvg(result) {
   const height = Math.max(190, legendY + 8);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="360" height="${height}" viewBox="0 0 360 ${height}">
     <rect width="360" height="${height}" fill="white" rx="6"/>
-    <text x="180" y="14" font-size="11" font-weight="bold" fill="#1A1D27" text-anchor="middle">Distribución por tipo</text>
+    <text x="180" y="14" font-size="11" font-weight="bold" fill="#1A1D27" text-anchor="middle">${lang === 'en' ? 'Distribution by type' : 'Distribución por tipo'}</text>
     ${paths}
     <circle cx="${cx}" cy="${cy}" r="${r * 0.45}" fill="white"/>
     <text x="${cx}" y="${cy - 4}" font-size="8" fill="#6E6E6E" text-anchor="middle">${types.length}</text>
-    <text x="${cx}" y="${cy + 8}" font-size="7" fill="#9E9E9E" text-anchor="middle">tipos</text>
+    <text x="${cx}" y="${cy + 8}" font-size="7" fill="#9E9E9E" text-anchor="middle">${lang === 'en' ? 'types' : 'tipos'}</text>
     ${legend}
   </svg>`;
 }
@@ -112,40 +112,62 @@ async function imageUrlToDataUrl(url) {
   }
 }
 
-/**
- * Genera un PDF con imagen, gráfica de distribución y tabla de resultados.
- */
-export async function exportAnalysisToPdf(analysis) {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+const PDF_LABELS = {
+  en: {
+    date: 'Date',
+    summary: 'Summary',
+    totalParticles: 'Total particles',
+    totalArea: 'Total area (px)',
+    fibers: '% Fibers',
+    particleTypes: 'Particle types',
+    type: 'Type',
+    count: 'Count',
+    area: 'Area (px)',
+    notes: 'Notes',
+  },
+  es: {
+    date: 'Fecha',
+    summary: 'Resumen',
+    totalParticles: 'Total partículas',
+    totalArea: 'Área total (px)',
+    fibers: '% Fibras',
+    particleTypes: 'Tipos de partículas',
+    type: 'Tipo',
+    count: 'Cantidad',
+    area: 'Área (px)',
+    notes: 'Notas',
+  },
+};
+
+function renderAnalysisPage(doc, analysis, lang, imgData, chartData) {
+  const L = PDF_LABELS[lang];
   const pageW = doc.internal.pageSize.getWidth();
   const margin = 15;
   const tableW = pageW - margin * 2;
   let y = 20;
 
-  // Título
   doc.setFontSize(15);
   doc.setTextColor(...DARK);
   doc.text(analysis.name || 'Análisis de partículas', margin, y);
-
   y += 7;
   doc.setFontSize(8);
   doc.setTextColor(...GRAY);
+  const locale = lang === 'en' ? 'en-US' : 'es-MX';
   const dateStr = analysis.created_date
-    ? new Date(analysis.created_date).toLocaleString('es-MX')
-    : new Date().toLocaleString('es-MX');
-  doc.text(`Fecha: ${dateStr}`, margin, y);
+    ? new Date(analysis.created_date).toLocaleString(locale)
+    : new Date().toLocaleString(locale);
+  doc.text(`${L.date}: ${dateStr}`, margin, y);
   y += 8;
 
-  // Resumen
   doc.setFontSize(10);
   doc.setTextColor(...DARK);
-  doc.text('Resumen', margin, y);
+  doc.text(L.summary, margin, y);
   y += 5;
 
   const summaryCols = [
-    { label: 'Total partículas', value: fmt(analysis.result?.total_particles) },
-    { label: 'Área total (px)', value: fmt(analysis.result?.total_particle_area_pixels) },
-    { label: '% Fibras', value: typeof analysis.result?.fiber_percentage === 'number' ? `${analysis.result.fiber_percentage.toFixed(2)}%` : '—' },
+    { label: L.totalParticles, value: fmt(analysis.result?.total_particles) },
+    { label: L.totalArea, value: fmt(analysis.result?.total_particle_area_pixels) },
+    { label: L.fibers, value: typeof analysis.result?.fiber_percentage === 'number' ? `${analysis.result.fiber_percentage.toFixed(2)}%` : '—' },
   ];
   const colW = tableW / summaryCols.length;
   summaryCols.forEach((c, i) => {
@@ -161,17 +183,10 @@ export async function exportAnalysisToPdf(analysis) {
   });
   y += 17;
 
-  // Imagen + Gráfica lado a lado
-  const imgData = analysis.image_url ? await imageUrlToDataUrl(analysis.image_url) : null;
-  const chartSvg = buildPieChartSvg(analysis.result);
-  const chartData = chartSvg ? await svgToPngDataUrl(chartSvg).catch(() => null) : null;
-
   if (imgData || chartData) {
     const halfW = (tableW - 4) / 2;
     if (imgData) {
-      try {
-        doc.addImage(imgData, 'JPEG', margin, y, halfW, halfW * 0.7);
-      } catch (_) { /* skip */ }
+      try { doc.addImage(imgData, 'JPEG', margin, y, halfW, halfW * 0.7); } catch (_) { /* skip */ }
     }
     if (chartData) {
       try {
@@ -182,14 +197,13 @@ export async function exportAnalysisToPdf(analysis) {
     y += halfW * 0.7 + 6;
   }
 
-  // Tabla de tipos
   if (y > 250) { doc.addPage(); y = 20; }
   doc.setFontSize(10);
   doc.setTextColor(...DARK);
-  doc.text('Tipos de partículas', margin, y);
+  doc.text(L.particleTypes, margin, y);
   y += 4;
 
-  const headers = ['Tipo', 'Cantidad', 'Área (px)', '%'];
+  const headers = [L.type, L.count, L.area, '%'];
   const colWidths = [tableW * 0.4, tableW * 0.2, tableW * 0.25, tableW * 0.15];
 
   doc.setFillColor(...ACCENT);
@@ -217,18 +231,34 @@ export async function exportAnalysisToPdf(analysis) {
     y += 6.5;
   });
 
-  // Notas
   if (analysis.result?.notes) {
     y += 4;
     if (y > 270) { doc.addPage(); y = 20; }
     doc.setFontSize(8);
     doc.setTextColor(...GRAY);
-    doc.text('Notas:', margin, y);
+    doc.text(`${L.notes}:`, margin, y);
     y += 4;
     const lines = doc.splitTextToSize(analysis.result.notes, tableW);
     doc.setTextColor(...DARK);
     doc.text(lines, margin, y);
   }
+}
+
+/**
+ * Genera un PDF bilingüe: página 1 en inglés, página 2 en español.
+ */
+export async function exportAnalysisToPdf(analysis) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  const imgData = analysis.image_url ? await imageUrlToDataUrl(analysis.image_url) : null;
+  const chartSvgEn = buildPieChartSvg(analysis.result, 'en');
+  const chartDataEn = chartSvgEn ? await svgToPngDataUrl(chartSvgEn).catch(() => null) : null;
+  const chartSvgEs = buildPieChartSvg(analysis.result, 'es');
+  const chartDataEs = chartSvgEs ? await svgToPngDataUrl(chartSvgEs).catch(() => null) : null;
+
+  renderAnalysisPage(doc, analysis, 'en', imgData, chartDataEn);
+  doc.addPage();
+  renderAnalysisPage(doc, analysis, 'es', imgData, chartDataEs);
 
   doc.save(`${analysis.name || 'analisis'}.pdf`);
 }
